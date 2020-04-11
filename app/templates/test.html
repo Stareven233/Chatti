@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>socketio测试</title>
+
+    <style>
+        html {
+            font-family: Microsoft Yahei,Helvetica Neue,Helvetica,Arial,Hiragino Sans GB,Heiti SC,WenQuanYi Micro Hei,sans-serif;
+            font-size: 100px;
+        }
+        #content_box {
+            position: relative;
+            width: 7.6rem;
+            margin: 0 auto;
+            font-size: 0.14rem;
+        }
+        #msg_box {
+            position: relative;
+            height: 6rem;
+            border: 1px solid #c85050;
+            overflow: scroll;
+        }
+        #send_box {
+            position: relative;
+            bottom: 0;
+            height: 5em;
+            border: 1px solid #c85050;
+            margin-bottom: 50px;
+            overflow: hidden;
+        }
+        #send_box .msg_input{
+            float: left;
+            height: 100%;
+            width: 90%;
+            resize: none;
+        }
+        #send_box .send_btn{
+            float: left;
+            height: 100%;
+            width: 9%;
+        }
+        #op_box .online_cnt {
+            position: relative;
+            float: right;
+        }
+    </style>
+
+    <script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://cdn.bootcss.com/socket.io/2.3.0/socket.io.dev.js"></script>
+</head>
+<body>
+    <div id="content_box">
+        <div id="op_box">
+            <label>
+                <span>输入昵称</span>
+                <input class="name" type="text" value="匿名用户">
+            </label>
+            <label>
+                <span>输入房间号</span>
+                <input class="room_id" type="text">
+            </label>
+            <input class="join" type="button" value="加入">
+            <span class="online_cnt">
+                当前在线人数：
+                <span>0</span>
+                <input class="refresh_cnt" type="button" value="refresh">
+            </span>
+        </div>
+        <div id="msg_box"></div>
+        <div id="send_box">
+            <textarea class="msg_input"></textarea>
+            <input class="send_btn" type="button" value="发送">
+        </div>
+    </div>
+</body>
+
+    <script type="text/javascript" defer>
+        let msg_box = $('#msg_box');
+        let socket = io('http://127.0.0.1:5000/chat/rooms');
+        let username = $('#op_box .name');
+        let room_id = $('#op_box .room_id');
+        let online_box = $('#op_box .online_cnt>span');
+
+		function show(data)
+		{
+			//JSON.stringify(data)
+			let p = $('<p></p>').html(JSON.stringify(data));
+    	    msg_box.append(p);
+        }
+        //socket.emit('test');
+
+        socket.on('connect', () => msg_box.append($("<p>成功连接服务器</p>")));
+        socket.on('chat', (d) => show(d.username + ': ' + d.msg));
+        socket.on('response', (d) => show(d));
+        socket.on('disconnect', () => msg_box.append($("<p>连接已断开</p>")));
+        socket.on('online_delta', (d) => online_box.html(+d + +online_box.html()));
+        socket.on('online_count', (d) => online_box.html(+d));
+
+        $('#op_box .join').bind('click', function () {
+            socket.emit('join', {username: username.val(), room: room_id.val()});
+        });
+        $('#send_box .send_btn').click(function (e) {
+            // document.querySelector('#send_box .send_btn').addEventListener('click', function (e) {
+            let text = e.target.previousElementSibling;
+            socket.emit('chat', {username: username.val(), room: room_id.val(), msg: text.value});
+            text.value = '';
+        });
+        $('#op_box .refresh_cnt').click(function () {
+            socket.emit('online_cnt', {room: room_id.val()});
+        });
+
+        window.onbeforeunload = function () {
+            socket.emit('leave', {username: username.val(), room: room_id.val()});
+        };
+    </script>
+</html>

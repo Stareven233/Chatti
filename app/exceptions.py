@@ -20,11 +20,11 @@ class MyApiError(HTTPException):
 
 class NotRoomError(MyApiError):
     code = 404
-    description = '不存在该房间'
+    description = '不存在该房间，或room_id错误'
     e_code = 1101
 
 
 class NotConnectError(MyApiError):
     code = 400
-    description = '连接未建立'
+    description = '连接未建立，或sid错误'
     e_code = 1102

@@ -3,4 +3,3 @@
 venv/
 *.noe
 app/static/
-app/templates/

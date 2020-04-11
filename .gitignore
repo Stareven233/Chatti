@@ -1,0 +1,6 @@
+.idea/
+*.pyc
+venv/
+*.noe
+app/static/
+app/templates/

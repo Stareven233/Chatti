@@ -1,10 +1,12 @@
 from .. import socketio, redis_db
 from flask_socketio import emit, join_room, leave_room, disconnect
 from flask import request
+from config import STATICS_DEST
+from os import remove
 
 get_participants = socketio.server.manager.get_participants
 r_members = socketio.server.manager.rooms
-# 用r_members可计算长度，但它是原字典，不可在迭代中删除
+# 用r_members可用于计算长度，字典类型，不可在迭代中删除键
 
 
 @socketio.on('connect', namespace='/chat/rooms')
@@ -14,12 +16,20 @@ def on_connect():
 
 @socketio.on('disconnect', namespace='/chat/rooms')
 def on_disconnect():
-    room_id = redis_db.hget(f'user_{request.sid}', 'room').decode()
+    room_id = redis_db.hget(f'user_{request.sid}', 'room')
     redis_db.delete(f'user_{request.sid}')
-    if room_id is not None:
+    if room_id is None:
+        return
+    room_id = room_id.decode()
+    room_key = f'room_{room_id}'
+
+    if room_id in r_members['/chat/rooms']:  # 最后1人断开时socket会删去记录，此if为False
         for p in get_participants('/chat/rooms', room_id):
-            disconnect(p, '/chat/rooms')  # 将该用户创建房间中其他人踢出
-        redis_db.delete(f'room_{room_id}', f'msg_{room_id}')  # 删除该用户创建的房间及消息记录
+            disconnect(p)  # 将该用户创建房间中其他人踢出
+
+    if redis_db.hexists(room_key, 'avatar'):
+        remove(STATICS_DEST + f'\\img\\{room_key}')
+    redis_db.delete(room_key, f'msg_{room_id}')  # 删除该用户创建的房间及消息记录
     print('关闭了连接', request.sid)
 
 
@@ -50,6 +60,7 @@ def on_chatting(data):  # todo 考虑到client过来的可能是json
 def online_count(data):
     room_id = data['room']
     if not redis_db.exists(f'room_{room_id}'):
+        emit('online_count', 0, room=room_id)
         return False
     num = len(r_members['/chat/rooms'][room_id].keys())
     print('是谁再问人数', num)

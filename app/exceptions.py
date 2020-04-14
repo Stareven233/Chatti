@@ -1,8 +1,6 @@
 from werkzeug.exceptions import HTTPException
 from werkzeug.wrappers import BaseResponse
-from json import dumps
-
-json_config = {'ensure_ascii': False, 'indent': None, 'separators': (',', ':')}
+from . import compact_dumps
 
 
 class MyApiError(HTTPException):
@@ -15,7 +13,7 @@ class MyApiError(HTTPException):
 
     def to_json(self):
         response = {'code': self.e_code, 'msg': self.description}
-        return dumps(response, **json_config)
+        return compact_dumps(response)
 
 
 class NotRoomError(MyApiError):

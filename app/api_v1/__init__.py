@@ -19,4 +19,4 @@ v1 = Blueprint('v1', __name__)
 api = CustomApi(v1)
 # api = CustomApi(v1, errors=custom_errors)
 
-from . import rooms, errors, statics
+from . import rooms, errors

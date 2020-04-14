@@ -81,7 +81,7 @@
     <script type="text/javascript" defer>
         let msg_box = $('#msg_box');
         let socket = io('http://127.0.0.1:5000/chat/rooms');
-        let username = $('#op_box .name');
+        let uname = $('#op_box .name');
         let room_id = $('#op_box .room_id');
         let online_box = $('#op_box .online_cnt>span');
 
@@ -94,19 +94,19 @@
         //socket.emit('test');
 
         socket.on('connect', () => msg_box.append($("<p>成功连接服务器</p>")));
-        socket.on('chat', (d) => show(d.username + ': ' + d.msg));
+        socket.on('chat', (d) => show(d.uname + ': ' + d.msg));
         socket.on('response', (d) => show(d));
         socket.on('disconnect', () => msg_box.append($("<p>连接已断开</p>")));
         socket.on('online_delta', (d) => online_box.html(+d + +online_box.html()));
         socket.on('online_count', (d) => online_box.html(+d));
 
         $('#op_box .join').bind('click', function () {
-            socket.emit('join', {username: username.val(), room: room_id.val()});
+            socket.emit('join', {uname: uname.val(), room: room_id.val()});
         });
         $('#send_box .send_btn').click(function (e) {
             // document.querySelector('#send_box .send_btn').addEventListener('click', function (e) {
             let text = e.target.previousElementSibling;
-            socket.emit('chat', {username: username.val(), room: room_id.val(), msg: text.value});
+            socket.emit('chat', {uname: uname.val(), room: room_id.val(), msg: text.value});
             text.value = '';
         });
         $('#op_box .refresh_cnt').click(function () {
@@ -114,7 +114,7 @@
         });
 
         window.onbeforeunload = function () {
-            socket.emit('leave', {username: username.val(), room: room_id.val()});
+            socket.emit('leave', {uname: uname.val(), room: room_id.val()});
         };
     </script>
 </html>

@@ -4,12 +4,35 @@ from werkzeug.datastructures import FileStorage
 from .. import redis_db, socketio
 from secrets import token_urlsafe
 from flask_socketio import disconnect, rooms
-from ..exceptions import NotRoomError, NotConnectError
+from ..exceptions import NotRoomError, NotConnectError, UpTypeError
 from config import STATICS_DEST, MSG_PER_PAGE
 from json import loads
 from flask import url_for
+from os import remove
 
 get_participants = socketio.server.manager.get_participants
+
+
+def store_info(args, room_id):
+    avatar = args['avatar']
+    room_key = f'room_{room_id}'
+
+    if avatar is not None:
+        m_type = avatar.mimetype.split('/')
+        if m_type[0] != 'image':
+            raise UpTypeError('检查图片后缀是否存在且合法')
+        # 图片靠nginx代理，redis保存文件名仅供更新删除
+
+        filename = redis_db.hget(room_key, 'avatar')
+        if filename:
+            remove(STATICS_DEST+f'\\img\\{filename}')
+        filename = f'{room_key}.{m_type[1]}'
+        avatar.save(STATICS_DEST+f'\\img\\{filename}')
+        args['avatar'] = filename
+
+    room_info = {k: v for k, v in args.items() if v is not None}  # redis不允许None
+    redis_db.hmset(room_key, room_info)
+    return url_for('main.chat_room', room_id=room_id, _external=True)
 
 
 class RoomAPI(Resource):
@@ -24,7 +47,7 @@ class RoomAPI(Resource):
         self.reqparse.add_argument('sid', type=str, required=True, location='form')
         self.reqparse.add_argument('name', type=str, required=True, location='form')
         args = self.reqparse.parse_args(strict=True)
-        if not rooms(args['sid'], '/chat/rooms'):
+        if not rooms(args['sid'], '/chat'):
             raise NotConnectError('无效的sid，房间创建失败')
 
         sid = args.pop('sid')
@@ -32,16 +55,10 @@ class RoomAPI(Resource):
         while redis_db.exists(f'room_{room_id}'):
             room_id = token_urlsafe(16)
 
-        avatar = args['avatar']
-        if avatar is not None:
-            avatar.save(STATICS_DEST+f'\\img\\room_{room_id}')  # 文件名不保留后缀，靠redis存mimetype
-            args['avatar'] = avatar.mimetype
+        room_url = store_info(args, room_id)
+        redis_db.hset(f'user_{sid}', 'room', room_id)
 
-        room_info = {k: v for k, v in args.items() if v is not None}  # redis不允许None
-        redis_db.hset(f'user_{sid}', 'room', room_id)  # with socketio.server.session(sid) as session
-        redis_db.hmset(f'room_{room_id}', room_info)
-
-        response = {'code': 0, 'msg': '', 'data': room_id}  # todo 应换成room_url
+        response = {'code': 0, 'msg': '', 'data': room_url}
         return response, 201
 
     def delete(self):
@@ -52,8 +69,8 @@ class RoomAPI(Resource):
         if room_id is None:
             raise NotRoomError('该房间不存在，删除失败')
 
-        for p in get_participants('/chat/rooms', room_id):
-            disconnect(p, '/chat/rooms')
+        for p in get_participants('/chat', room_id):
+            disconnect(p, '/chat')
         # 引发on_disconnect，删掉p创建的房间，但实际上除房主外都不会建立房间，不会误删
 
         response = {'code': 0, 'msg': ""}
@@ -69,15 +86,9 @@ class RoomAPI(Resource):
         if room_id is None:
             raise NotRoomError()
 
-        avatar = args['avatar']
-        if avatar is not None:
-            avatar.save(STATICS_DEST+f'\\img\\room_{room_id}')
-            args['avatar'] = avatar.mimetype
+        room_url = store_info(args, room_id)
 
-        room_info = {k: v for k, v in args.items() if v is not None}
-        redis_db.hmset(f'room_{room_id}', room_info)
-
-        response = {'code': 0, 'msg': "", 'data': room_id}  # todo 应换成room_url
+        response = {'code': 0, 'msg': "", 'data': room_url}
         return response, 200
 
     def get(self):
@@ -86,7 +97,9 @@ class RoomAPI(Resource):
         room_id = args["room"]
 
         room_info = redis_db.hgetall(f'room_{room_id}')
-        room_info['avatar'] = url_for('main.room_avatar', room_id=room_id)
+        filename = room_info.get('avatar', '') or 'default.png'
+        room_info['avatar'] = url_for('main.room_avatar', filename=filename)
+
         response = {'code': 0, 'msg': "", 'data': room_info}
         return response, 200
 

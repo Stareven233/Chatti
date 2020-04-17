@@ -26,3 +26,9 @@ class NotConnectError(MyApiError):
     code = 400
     description = '连接未建立，或sid错误'
     e_code = 1102
+
+
+class UpTypeError(MyApiError):
+    code = 415
+    description = '未表明文件类型或类型非法'
+    e_code = 1103

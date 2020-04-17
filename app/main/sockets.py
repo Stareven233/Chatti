@@ -10,12 +10,12 @@ r_members = socketio.server.manager.rooms
 # r_members[namespace][room_id]: 获取房间成员，可用于计算长度，字典类型，不可在迭代中删除键
 
 
-@socketio.on('connect', namespace='/chat/rooms')
+@socketio.on('connect', namespace='/chat')
 def on_connect():
     print('连接上了', request.sid)
 
 
-@socketio.on('disconnect', namespace='/chat/rooms')
+@socketio.on('disconnect', namespace='/chat')
 def on_disconnect():
     room_id = redis_db.hget(f'user_{request.sid}', 'room')
     if room_id is None:
@@ -23,16 +23,17 @@ def on_disconnect():
     room_key = f'room_{room_id}'
 
     if room_id in rooms():  # 最后1人断开时socket会删去记录，此if为False
-        for p in get_participants('/chat/rooms', room_id):
+        for p in get_participants('/chat', room_id):
             disconnect(p)  # 将该用户创建房间中其他人踢出
 
-    if redis_db.hexists(room_key, 'avatar'):
-        remove(STATICS_DEST + f'\\img\\{room_key}')
+    avatar = redis_db.hget(room_key, 'avatar')
+    if avatar:
+        remove(STATICS_DEST + f'\\img\\{avatar}')
     redis_db.delete(f'user_{request.sid}', room_key, f'msg_{room_id}')
     print('关闭了连接', request.sid)
 
 
-@socketio.on('join', namespace='/chat/rooms')
+@socketio.on('join', namespace='/chat')
 def on_join(data):
     room_id = data.pop('room', '')
     if not redis_db.exists(f'room_{room_id}'):
@@ -43,7 +44,7 @@ def on_join(data):
     emit('response', data['uname'] + '加入了房间', broadcast=True, room=room_id)
 
 
-@socketio.on('leave', namespace='/chat/rooms')
+@socketio.on('leave', namespace='/chat')
 def on_leave(data):
     room_id = data.pop('room', '')
     if room_id not in rooms():
@@ -54,7 +55,7 @@ def on_leave(data):
     emit('response', data['uname'] + '离开了房间', broadcast=True, room=room_id)
 
 
-@socketio.on('chat', namespace='/chat/rooms')
+@socketio.on('chat', namespace='/chat')
 def on_chatting(data):
     room_id = data.pop('room', '')
     if room_id not in rooms() or not data.get('msg', ''):
@@ -64,22 +65,22 @@ def on_chatting(data):
     emit('chat', data, broadcast=True, room=room_id)  # , include_self=False
 
 
-@socketio.on('online_cnt', namespace='/chat/rooms')
+@socketio.on('online_cnt', namespace='/chat')
 def online_count(data):
     room_id = data['room']
     if room_id not in rooms():
         emit('online_count', 0, room=room_id)
         return
-    num = len(r_members['/chat/rooms'][room_id].keys())
+    num = len(r_members['/chat'][room_id].keys())
     print('是谁再问人数', num)
     emit('online_count', num, room=room_id)
 
 
-@socketio.on('test', namespace='/chat/rooms')
+@socketio.on('test', namespace='/chat')
 def on_test():
     return
     # raise NotRoomError()
     # print(rooms(data['sid']))
-    # members = list(get_participants('/chat/rooms', data['sid']))
+    # members = list(get_participants('/chat', data['sid']))
     # info = json.dumps(members, **json_config)
     # print(len(members), info)

@@ -5,6 +5,7 @@ from os.path import dirname, sep
 STATICS_DEST = dirname(__file__)+sep+'app'+sep+'static'+sep
 GLOBAL_ERROR_CODE = '400 401 403 404 500'.split()
 MSG_PER_PAGE = 10
+ALLOWED_IMG_EXT = 'jpg jpeg png'.split()
 
 
 class Config(object):

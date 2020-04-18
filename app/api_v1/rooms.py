@@ -5,7 +5,7 @@ from .. import redis_db, socketio
 from secrets import token_urlsafe
 from flask_socketio import disconnect, rooms
 from ..exceptions import NotRoomError, NotConnectError, UpTypeError
-from config import STATICS_DEST, MSG_PER_PAGE
+from config import STATICS_DEST, MSG_PER_PAGE, ALLOWED_IMG_EXT
 from json import loads
 from flask import url_for
 from os import remove
@@ -19,7 +19,7 @@ def store_info(args, room_id):
 
     if avatar is not None:
         m_type = avatar.mimetype.split('/')
-        if m_type[0] != 'image':
+        if m_type[0] != 'image' or m_type[1] not in ALLOWED_IMG_EXT:
             raise UpTypeError('检查图片后缀是否存在且合法')
         # 图片靠nginx代理，redis保存文件名仅供更新删除
 

@@ -4,17 +4,9 @@ from flask import jsonify
 response = {'code': 0, 'msg': ""}
 
 
-@v1.app_errorhandler(401)
-def authorize_failed(e):
-    # Flask_RESTful Api 传的参数，exception类型
-    response['code'] = 1001
-    response['msg'] = "认证失败"
-    return jsonify(response), 401
-
-
 @v1.app_errorhandler(403)
 def forbidden(e):
-    response['code'] = 1002
+    response['code'] = 1001
     response['msg'] = "禁止访问"
     return jsonify(response), 403
 

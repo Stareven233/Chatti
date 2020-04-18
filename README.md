@@ -7,22 +7,22 @@
 ## 安装
 - - -
 在合适目录下执行：
->$ git clone https://github.com/Stareven233/Chatti.git
->$ cd chatti
+>$ git clone https://github.com/Stareven233/Chatti.git  
+>$ cd chatti  
 
 安装依赖：
->$ python -m virtualenv venv
->$ source venv/Scripts/activate
->$ pip install -r requirements.txt
+>$ python -m virtualenv venv  
+>$ source venv/Scripts/activate  
+>$ pip install -r requirements.txt  
 
 数据库：
->安装redis并启动，可以去掉其持久化
+>安装redis并启动，可以去掉其持久化  
 
 部署：
->安装并启动Nginx
-代理"/"、"/socket.io"的5000端口
-"/"需要设置proxy_set_header Host $host;
-为"/static/"下的静态资源设置代理
+>安装并启动Nginx  
+>代理"/"、"/socket.io"的5000端口  
+>"/"需要设置proxy_set_header Host $host;  
+>为"/static/"下的静态资源设置代理  
 
 
 ## 启动

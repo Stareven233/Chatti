@@ -99,6 +99,7 @@
         socket.on('disconnect', () => msg_box.append($("<p>连接已断开</p>")));
         socket.on('online_delta', (d) => online_box.html(+d + +online_box.html()));
         socket.on('online_count', (d) => online_box.html(+d));
+        socket.on('sid', (d) => msg_box.append($("</p>").html(d)));
 
         $('#op_box .join').bind('click', function () {
             socket.emit('join', {uname: uname.val(), room: room_id.val()});

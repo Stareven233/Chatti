@@ -114,21 +114,29 @@ class MsgHistoryAPI(Resource):
     def __init__(self):
         self.reqparse = reqparse.RequestParser()
         self.reqparse.add_argument('room', type=str, required=True, location='args')
-        self.reqparse.add_argument('page', type=int, required=True, location='args')
+        self.reqparse.add_argument('mid', type=int, required=True, location='args')
+        self.reqparse.add_argument('ps', type=int, required=False, default=10, location='args')
         super().__init__()
 
     def get(self):
         args = self.reqparse.parse_args(strict=True)
-        room_id = args['room']
+        room_id, mid, ps = args['room'], args['mid'], args['ps']
         msg_key = f'msg_{room_id}'
 
-        pn = 0 if args['page'] < 1 else args['page']-1  # 将其限制到正整数再-1
-        pn = pn*MSG_PER_PAGE + 1  # 最终将正整数页码转换为消息list的负索引
-        pn = -min(pn, redis_db.llen(msg_key)+1)  # 限制pn上界，pn=len+1表示pn>len，查询为空
+        ps = 1 if ps < 1 else (MSG_PER_PAGE if ps > MSG_PER_PAGE else ps)  # 0<ps<MSG_PER_PAGE
 
-        msg_list = redis_db.lrange(msg_key, pn-MSG_PER_PAGE+1, pn)
+        m_len = redis_db.llen(msg_key)
+        if mid == -1 or mid > m_len:  # -1<mid<m_len, 与begin相对，充当end
+            mid = m_len - 1
+        elif mid <= 0:
+            mid = 0
+
+        begin = mid-ps+1 if mid > ps else 0  # -1<begin<=end
+
+        msg_list = redis_db.lrange(msg_key, begin, mid)
         msg_list = list(map(lambda x: loads(x), msg_list))
-        response = {'code': 0, 'msg': "", 'data': msg_list[::-1]}
+        data = {'left': begin, 'list': msg_list[::-1]}  # left: 剩余未取数量
+        response = {'code': 0, 'msg': "", 'data': data}
         return response, 200
 
 

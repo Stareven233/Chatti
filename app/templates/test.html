@@ -94,7 +94,7 @@
         //socket.emit('test');
 
         socket.on('connect', () => msg_box.append($("<p>成功连接服务器</p>")));
-        socket.on('chat', (d) => show(d.uname + ': ' + d.msg));
+        socket.on('chat', (d) => show(d.name + ': ' + d.msg));
         socket.on('response', (d) => show(d));
         socket.on('disconnect', () => msg_box.append($("<p>连接已断开</p>")));
         socket.on('online_delta', (d) => online_box.html(+d + +online_box.html()));
@@ -102,12 +102,12 @@
         socket.on('sid', (d) => msg_box.append($("</p>").html(d)));
 
         $('#op_box .join').bind('click', function () {
-            socket.emit('join', {uname: uname.val(), room: room_id.val()});
+            socket.emit('join', {name: uname.val(), room: room_id.val()});
         });
         $('#send_box .send_btn').click(function (e) {
             // document.querySelector('#send_box .send_btn').addEventListener('click', function (e) {
             let text = e.target.previousElementSibling;
-            socket.emit('chat', {uname: uname.val(), room: room_id.val(), msg: text.value});
+            socket.emit('chat', {name: uname.val(), room: room_id.val(), msg: text.value});
             text.value = '';
         });
         $('#op_box .refresh_cnt').click(function () {
@@ -115,7 +115,7 @@
         });
 
         window.onbeforeunload = function () {
-            socket.emit('leave', {uname: uname.val(), room: room_id.val()});
+            socket.emit('leave', {name: uname.val(), room: room_id.val()});
         };
     </script>
 </html>

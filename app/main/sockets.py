@@ -24,9 +24,12 @@ class ChatRoom(Namespace):
         room_id = redis_db.hget(rm_list[0], 'room')
 
         if room_id:  # 非房主不会有room_id
-            for p in get_participants('/chat', room_id):
-                if p != request.sid:
-                    disconnect(p)  # 触发该事件时房主已断开，故只需断开其他人即可
+            try:
+                for p in get_participants('/chat', room_id):
+                    # if p != request.sid:  # 触发该事件时房主已断开，故只需断开其他人即可
+                    disconnect(p)
+            except KeyError:  # 仅有房主且房主退出则room无人，room被销毁
+                pass
             rm_list.append(f'room_{room_id}')  # room_key
             rm_list.append(f'msg_{room_id}')  # msg_key
 

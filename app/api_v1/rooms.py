@@ -37,7 +37,7 @@ def store_info(args, room_id):
 
     room_info = {k: v for k, v in args.items() if v is not None}  # redis不允许None
     redis_db.hmset(room_key, room_info)
-    return url_for('main.chat_room', room_id=room_id, _external=True)
+    # return url_for('main.chat_room', room_id=room_id, _external=True)
 
 
 class RoomAPI(Resource):
@@ -51,7 +51,8 @@ class RoomAPI(Resource):
     def post(self):
         self.reqparse.add_argument('sid', type=str, required=True, location='form')
         self.reqparse.add_argument('name', type=str, required=True, location='form')
-        args = self.reqparse.parse_args(strict=True)
+        args = self.reqparse.parse_args(strict=True)  # ['form', 'values']
+        # args = eval(request.data.decode())
         if not rooms(args['sid'], '/chat'):
             raise NotConnectError('无效的sid，房间创建失败')
 
@@ -60,14 +61,14 @@ class RoomAPI(Resource):
         while redis_db.exists(f'room_{room_id}'):
             room_id = token_urlsafe(16)
 
-        room_url = store_info(args, room_id)
+        store_info(args, room_id)
         redis_db.hset(f'user_{sid}', 'room', room_id)
 
-        response = {'code': 0, 'msg': '', 'data': room_url}
+        response = {'code': 0, 'msg': '', 'data': room_id}
         return response, 201
 
     def delete(self):
-        self.reqparse.add_argument('sid', type=str, required=True, location='json')
+        self.reqparse.add_argument('sid', type=str, required=True, location='args')
         args = self.reqparse.parse_args(strict=True)
         sid = args['sid']
         room_id = redis_db.hget(f'user_{sid}', 'room')
@@ -91,19 +92,19 @@ class RoomAPI(Resource):
         if room_id is None:
             raise NotRoomError()
 
-        room_url = store_info(args, room_id)
+        store_info(args, room_id)
 
-        response = {'code': 0, 'msg': "", 'data': room_url}
+        response = {'code': 0, 'msg': "", 'data': room_id}
         return response, 200
 
     def get(self):
-        self.reqparse.add_argument('room', type=str, required=True, location='json')
+        self.reqparse.add_argument('room', type=str, required=True, location='args')
         args = self.reqparse.parse_args(strict=True)
         room_id = args["room"]
 
         room_info = redis_db.hgetall(f'room_{room_id}')
         filename = room_info.get('avatar', '') or DEFAULT_AVATAR
-        room_info['avatar'] = url_for('main.room_avatar', filename=filename)
+        room_info['avatar'] = url_for('main.get_avatar', filename=filename)
 
         response = {'code': 0, 'msg': "", 'data': room_info}
         return response, 200
@@ -112,8 +113,8 @@ class RoomAPI(Resource):
 class MsgHistoryAPI(Resource):
     def __init__(self):
         self.reqparse = reqparse.RequestParser()
-        self.reqparse.add_argument('room', type=str, required=True, location='json')
-        self.reqparse.add_argument('page', type=int, required=True, location='json')
+        self.reqparse.add_argument('room', type=str, required=True, location='args')
+        self.reqparse.add_argument('page', type=int, required=True, location='args')
         super().__init__()
 
     def get(self):
@@ -134,7 +135,7 @@ class MsgHistoryAPI(Resource):
 class UserAvatarAPI(Resource):
     def __init__(self):
         self.reqparse = reqparse.RequestParser()
-        self.reqparse.add_argument('sid', type=str, required=True, location=['json', 'form'])
+        self.reqparse.add_argument('sid', type=str, required=True, location=['args', 'form'])
         super().__init__()
 
     def get(self):
@@ -142,7 +143,7 @@ class UserAvatarAPI(Resource):
         user_key = f"user_{args['sid']}"
 
         filename = redis_db.hget(user_key, 'avatar') or DEFAULT_AVATAR
-        response = {'code': 0, 'msg': "", 'data': url_for('main.room_avatar', filename=filename)}
+        response = {'code': 0, 'msg': "", 'data': url_for('main.get_avatar', filename=filename)}
         return response, 200
 
     def put(self):

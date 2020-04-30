@@ -7,7 +7,8 @@ from os import remove
 
 get_participants = socketio.server.manager.get_participants
 r_members = socketio.server.manager.rooms
-# r_members[namespace][room_id]: 获取房间成员，可用于计算长度，字典类型，不可在迭代中删除键
+# r_members[][]: 获取房间成员，可用于计算长度，字典类型，不可在迭代中删除键
+# get_participants(, ): 获取房间成员，生成器；room_id不正确则报错，为None则返回所有用户
 
 
 class ChatRoom(Namespace):
@@ -19,21 +20,23 @@ class ChatRoom(Namespace):
         print('连接上了', request.sid)
 
     def on_disconnect(self):
-        user_key = f'user_{request.sid}'
-        room_id = redis_db.hget(user_key, 'room')
-        room_key = f'room_{room_id}'  # 'room_None' if room_id is None
+        rm_list = [f'user_{request.sid}']  # user_key
+        room_id = redis_db.hget(rm_list[0], 'room')
 
-        if room_id in rooms():  # 最后1人断开时socket会删去记录，此if为False
+        if room_id:  # 非房主不会有room_id
             for p in get_participants('/chat', room_id):
-                disconnect(p)  # 将该用户创建房间中其他人踢出
+                if p != request.sid:
+                    disconnect(p)  # 触发该事件时房主已断开，故只需断开其他人即可
+            rm_list.append(f'room_{room_id}')  # room_key
+            rm_list.append(f'msg_{room_id}')  # msg_key
 
-        for k in (user_key, room_key):
+        for k in rm_list[:2]:
             avatar = redis_db.hget(k, 'avatar')
             if not avatar:
                 continue
             remove(STATICS_DEST + f'/img/{avatar}')
 
-        redis_db.delete(user_key, room_key, f'msg_{room_id}')
+        redis_db.delete(*rm_list)
         print('关闭了连接', request.sid)
 
     def on_join(self, data):
@@ -42,8 +45,8 @@ class ChatRoom(Namespace):
             return
         join_room(room_id)  # 房主自己也得join
         print('有人加入了？')
-        emit('online_delta', 1, broadcast=True, room=room_id)
-        emit('response', data['uname'] + '加入了房间', broadcast=True, room=room_id)
+        # emit('online_delta', 1, broadcast=True, room=room_id)
+        emit('response', data['name'] + '加入了房间', broadcast=True, room=room_id)
 
     def on_leave(self, data):
         room_id = data.pop('room', '')
@@ -51,8 +54,10 @@ class ChatRoom(Namespace):
             return
         leave_room(room_id)
         print('有人离开了？')
-        emit('online_delta', -1, broadcast=True, room=room_id)
-        emit('response', data['uname'] + '离开了房间', broadcast=True, room=room_id)
+        # emit('online_delta', -1, broadcast=True, room=room_id)
+        num = len(r_members['/chat'][room_id].keys())
+        emit('online_count', num, room=room_id)  # 原本应由前端根据事件将人数减一
+        emit('response', data['name'] + '离开了房间', broadcast=True, room=room_id)
 
     def on_chat(self, data):
         room_id = data.pop('room', '')

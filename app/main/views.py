@@ -1,14 +1,13 @@
 from . import main
-from flask import render_template
 
 
-@main.route('/chat/<string:room_id>')
-def chat_room(room_id):
-    return render_template('test.html')
+# @main.route('/chat/<string:room_id>')
+# def chat_room(room_id):
+#     return render_template('test.html')
 
 
-@main.route('/static/img/<string:filename>')
-def room_avatar(filename):
+@main.route('/img/<string:filename>')
+def get_avatar(filename):
     pass
 #     mime_type = redis_db.hget(f'room_{room_id}', 'avatar')
 #     if not mime_type:

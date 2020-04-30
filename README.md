@@ -20,9 +20,9 @@
 
 部署：
 >安装并启动Nginx  
->代理"/"、"/socket.io"的5000端口  
->"/"需要设置proxy_set_header Host $host;  
->为"/static/"下的静态资源设置代理  
+>"/"设置index指令
+>代理"/static"下的静态资源
+>代理 "/v1"、"/socket.io"的5000端口
 
 
 ## 启动

@@ -2,7 +2,7 @@ from os import getenv
 from os.path import dirname, sep
 
 
-STATICS_DEST = dirname(__file__)+sep+'app'+sep+'static'+sep
+STATICS_DEST = dirname(__file__)+sep+'app'+sep+'static'+sep+'img'+sep
 GLOBAL_ERROR_CODE = '400 401 403 404 500'.split()
 MSG_PER_PAGE = 20
 DEFAULT_AVATAR = 'default.jpeg'

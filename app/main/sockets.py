@@ -26,18 +26,18 @@ class ChatRoom(Namespace):
         if room_id:  # 非房主不会有room_id
             try:
                 for p in get_participants('/chat', room_id):
-                    # if p != request.sid:  # 触发该事件时房主已断开，故只需断开其他人即可
-                    disconnect(p)
+                    if p != request.sid:  # 触发该事件时房主已断开，故只需断开其他人即可
+                        disconnect(p)
             except KeyError:  # 仅有房主且房主退出则room无人，room被销毁
                 pass
             rm_list.append(f'room_{room_id}')  # room_key
             rm_list.append(f'msg_{room_id}')  # msg_key
 
         for k in rm_list[:2]:
-            avatar = redis_db.hget(k, 'avatar')
-            if not avatar:
+            filename = redis_db.hget(k, 'avatar')
+            if not filename:
                 continue
-            remove(STATICS_DEST + f'/img/{avatar}')
+            remove(STATICS_DEST + filename)
 
         redis_db.delete(*rm_list)
         print('关闭了连接', request.sid)
@@ -49,7 +49,8 @@ class ChatRoom(Namespace):
         join_room(room_id)  # 房主自己也得join
         print('有人加入了？')
         # emit('online_delta', 1, broadcast=True, room=room_id)
-        emit('response', data['name'] + '加入了房间', broadcast=True, room=room_id)
+        data = {'msg': data['name'] + '加入了房间', 'change': 1}
+        emit('response', data, broadcast=True, room=room_id)
 
     def on_leave(self, data):
         room_id = data.pop('room', '')
@@ -58,9 +59,8 @@ class ChatRoom(Namespace):
         leave_room(room_id)
         print('有人离开了？')
         # emit('online_delta', -1, broadcast=True, room=room_id)
-        num = len(r_members['/chat'][room_id].keys())
-        emit('online_count', num, room=room_id)  # 原本应由前端根据事件将人数减一
-        emit('response', data['name'] + '离开了房间', broadcast=True, room=room_id)
+        data = {'msg': data['name'] + '离开了房间', 'change': -1}
+        emit('response', data, broadcast=True, room=room_id)
 
     def on_chat(self, data):
         room_id = data.pop('room', '')
@@ -71,6 +71,7 @@ class ChatRoom(Namespace):
         emit('chat', data, broadcast=True, room=room_id)  # , include_self=False
 
     def on_online_cnt(self, data):
+        print(data)
         room_id = data['room']
         if room_id not in rooms():
             emit('online_count', 0, room=room_id)

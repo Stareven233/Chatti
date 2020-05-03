@@ -9,6 +9,7 @@ from config import STATICS_DEST, MSG_PER_PAGE, ALLOWED_IMG_EXT, DEFAULT_AVATAR
 from json import loads
 from flask import url_for
 from os import remove
+from time import time
 
 get_participants = socketio.server.manager.get_participants
 
@@ -21,10 +22,10 @@ def store_avatar(img, key):
 
     filename = redis_db.hget(key, 'avatar')
     if filename and filename != DEFAULT_AVATAR:
-        remove(STATICS_DEST + f'\\img\\{filename}')
+        remove(STATICS_DEST + filename)
 
-    filename = f'{key}.{m_type[1]}'
-    img.save(STATICS_DEST + f'\\img\\{filename}')
+    filename = f'{token_urlsafe(3)}{time()}.{m_type[1]}'
+    img.save(STATICS_DEST + filename)  # 头像须公开但sid敏感，不能含sid
     return filename
 
 
@@ -37,7 +38,6 @@ def store_info(args, room_id):
 
     room_info = {k: v for k, v in args.items() if v is not None}  # redis不允许None
     redis_db.hmset(room_key, room_info)
-    # return url_for('main.chat_room', room_id=room_id, _external=True)
 
 
 class RoomAPI(Resource):
@@ -51,8 +51,7 @@ class RoomAPI(Resource):
     def post(self):
         self.reqparse.add_argument('sid', type=str, required=True, location='form')
         self.reqparse.add_argument('name', type=str, required=True, location='form')
-        args = self.reqparse.parse_args(strict=True)  # ['form', 'values']
-        # args = eval(request.data.decode())
+        args = self.reqparse.parse_args(strict=True)
         if not rooms(args['sid'], '/chat'):
             raise NotConnectError('无效的sid，房间创建失败')
 
@@ -73,7 +72,7 @@ class RoomAPI(Resource):
         sid = args['sid']
         room_id = redis_db.hget(f'user_{sid}', 'room')
         if room_id is None:
-            raise NotRoomError('该房间不存在，删除失败')
+            raise NotRoomError('该房间不存在，或无权删除')
 
         for p in get_participants('/chat', room_id):
             disconnect(p, '/chat')
@@ -90,7 +89,7 @@ class RoomAPI(Resource):
         sid = args.pop('sid')
         room_id = redis_db.hget(f'user_{sid}', 'room')
         if room_id is None:
-            raise NotRoomError()
+            raise NotRoomError('该房间不存在，或无权修改')
 
         store_info(args, room_id)
 
@@ -115,27 +114,26 @@ class MsgHistoryAPI(Resource):
         self.reqparse = reqparse.RequestParser()
         self.reqparse.add_argument('room', type=str, required=True, location='args')
         self.reqparse.add_argument('mid', type=int, required=True, location='args')
-        self.reqparse.add_argument('ps', type=int, required=False, default=10, location='args')
+        self.reqparse.add_argument('ps', type=int, required=False, default=3, location='args')
         super().__init__()
 
     def get(self):
         args = self.reqparse.parse_args(strict=True)
         room_id, mid, ps = args['room'], args['mid'], args['ps']
         msg_key = f'msg_{room_id}'
-
-        ps = 1 if ps < 1 else (MSG_PER_PAGE if ps > MSG_PER_PAGE else ps)  # 0<ps<MSG_PER_PAGE
-
         m_len = redis_db.llen(msg_key)
-        if mid == -1 or mid > m_len:  # -1<mid<m_len, 与begin相对，充当end
-            mid = m_len - 1
-        elif mid <= 0:
-            mid = 0
 
-        begin = mid-ps+1 if mid > ps else 0  # -1<begin<=end
+        if mid == -1:  # 第一次请求得知当前时间点往前的历史消息数，不返回消息
+            data = {'left': m_len, 'list': []}  # left: 剩余未取数量
+        else:
+            ps = 1 if ps < 1 else (MSG_PER_PAGE if ps > MSG_PER_PAGE else ps)  # 0<ps<MSG_PER_PAGE
+            mid = m_len-1 if mid > m_len else 0 if mid <= 0 else mid  # -1<mid<m_len, 与begin相对，充当end
+            begin = mid-ps+1 if mid >= ps else 0  # -1<begin<=end
 
-        msg_list = redis_db.lrange(msg_key, begin, mid)
-        msg_list = list(map(lambda x: loads(x), msg_list))
-        data = {'left': begin, 'list': msg_list[::-1]}  # left: 剩余未取数量
+            msg_list = redis_db.lrange(msg_key, begin, mid)
+            msg_list = list(map(lambda x: loads(x), msg_list))
+            data = {'left': begin, 'list': msg_list[::-1]}  # left=begin=0说明获取完毕
+
         response = {'code': 0, 'msg': "", 'data': data}
         return response, 200
 

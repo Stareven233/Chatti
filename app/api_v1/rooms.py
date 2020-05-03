@@ -114,7 +114,7 @@ class MsgHistoryAPI(Resource):
         self.reqparse = reqparse.RequestParser()
         self.reqparse.add_argument('room', type=str, required=True, location='args')
         self.reqparse.add_argument('mid', type=int, required=True, location='args')
-        self.reqparse.add_argument('ps', type=int, required=False, default=3, location='args')
+        self.reqparse.add_argument('ps', type=int, required=False, default=10, location='args')
         super().__init__()
 
     def get(self):

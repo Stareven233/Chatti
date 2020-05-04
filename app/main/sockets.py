@@ -48,7 +48,6 @@ class ChatRoom(Namespace):
             return
         join_room(room_id)  # 房主自己也得join
         print('有人加入了？')
-        # emit('online_delta', 1, broadcast=True, room=room_id)
         data = {'msg': data['name'] + '加入了房间', 'change': 1}
         emit('response', data, broadcast=True, room=room_id)
 
@@ -58,7 +57,6 @@ class ChatRoom(Namespace):
             return
         leave_room(room_id)
         print('有人离开了？')
-        # emit('online_delta', -1, broadcast=True, room=room_id)
         data = {'msg': data['name'] + '离开了房间', 'change': -1}
         emit('response', data, broadcast=True, room=room_id)
 
@@ -71,7 +69,6 @@ class ChatRoom(Namespace):
         emit('chat', data, broadcast=True, room=room_id)  # , include_self=False
 
     def on_online_cnt(self, data):
-        print(data)
         room_id = data['room']
         if room_id not in rooms():
             emit('online_count', 0, room=room_id)
